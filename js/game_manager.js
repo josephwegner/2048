@@ -4,7 +4,7 @@ function GameManager(size, InputManager, Actuator, StorageManager) {
   this.storageManager = new StorageManager;
   this.actuator       = new Actuator;
 
-  this.startTiles     = 2;
+  this.startTiles     = 1;
 
   this.inputManager.on("move", this.move.bind(this));
   this.inputManager.on("restart", this.restart.bind(this));
@@ -72,7 +72,7 @@ GameManager.prototype.addStartTiles = function () {
 // Adds a tile in a random position
 GameManager.prototype.addRandomTile = function () {
   if (this.grid.cellsAvailable()) {
-    var value = Math.random() < 0.9 ? 2 : 4;
+    var value = Math.random() < 0.9 ? 2048 : 1024;
     var tile = new Tile(this.grid.randomAvailableCell(), value);
 
     this.grid.insertTile(tile);
@@ -81,7 +81,7 @@ GameManager.prototype.addRandomTile = function () {
 
 // Sends the updated grid to the actuator
 GameManager.prototype.actuate = function () {
-  if (this.storageManager.getBestScore() < this.score) {
+  if (this.storageManager.getBestScore() > this.score && this.score !== 0) {
     this.storageManager.setBestScore(this.score);
   }
 
@@ -146,6 +146,8 @@ GameManager.prototype.move = function (direction) {
   // Save the current tile positions and remove merger information
   this.prepareTiles();
 
+  var mergedTiles = [];
+
   // Traverse the grid in the right direction and move tiles
   traversals.x.forEach(function (x) {
     traversals.y.forEach(function (y) {
@@ -164,14 +166,14 @@ GameManager.prototype.move = function (direction) {
           self.grid.insertTile(merged);
           self.grid.removeTile(tile);
 
+          mergedTiles.push(merged);
+
           // Converge the two tiles' positions
           tile.updatePosition(positions.next);
 
           // Update the score
           self.score += merged.value;
 
-          // The mighty 2048 tile
-          if (merged.value === 2048) self.won = true;
         } else {
           self.moveTile(tile, positions.farthest);
         }
@@ -184,7 +186,14 @@ GameManager.prototype.move = function (direction) {
   });
 
   if (moved) {
-    this.addRandomTile();
+
+    var edgeTiles = this.grid.edgeTiles(vector);
+
+    var added = this.splitTiles(edgeTiles, vector, mergedTiles);
+
+    if(!added) {
+      this.addRandomTile();
+    }
 
     if (!this.movesAvailable()) {
       this.over = true; // Game over!
@@ -192,6 +201,33 @@ GameManager.prototype.move = function (direction) {
 
     this.actuate();
   }
+};
+
+GameManager.prototype.splitTiles = function(tiles, vector, merged) {
+  var self = this;
+
+  var additions = 0;
+
+  tiles.forEach(function(tile) {
+      
+      for(var i=0,max=merged.length; i<max; i++) {
+        if(tile === merged[i]) {
+          return;
+        }
+      }
+
+      var newTile = new Tile({x: tile.x - vector.x, y: tile.y - vector.y}, tile.value / 2);
+
+      self.grid.insertTile(newTile);
+      tile.value = tile.value / 2;
+
+      additions++;
+
+      // The mighty 2048 tile
+      if (tile.value === 2) self.won = true;
+  });
+
+  return additions;
 };
 
 // Get the vector representing the chosen direction

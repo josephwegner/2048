@@ -63,6 +63,27 @@ Grid.prototype.eachCell = function (callback) {
   }
 };
 
+Grid.prototype.edgeTiles = function(vector) {
+  var self = this;
+
+  var tiles = [];
+
+  this.eachCell(function(x, y, tile) {
+    if(tile) {
+      var testCell = {
+        x: x - vector.x,
+        y: y - vector.y
+      };
+
+      if(testCell.x >=0 && testCell.y >= 0 && testCell.x < self.size && testCell.y < self.size && self.cellAvailable(testCell)) {
+        tiles.push(tile);
+      }
+    }
+  });
+
+  return tiles;
+};
+
 // Check if there are any cells available
 Grid.prototype.cellsAvailable = function () {
   return !!this.availableCells().length;
@@ -87,6 +108,7 @@ Grid.prototype.cellContent = function (cell) {
 
 // Inserts a tile at its position
 Grid.prototype.insertTile = function (tile) {
+  console.log(this, tile);
   this.cells[tile.x][tile.y] = tile;
 };
 
